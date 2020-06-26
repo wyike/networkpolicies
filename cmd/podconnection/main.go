@@ -1,0 +1,86 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"networkpolicies/pkg/k8s"
+	"os"
+)
+
+var (
+	help bool
+
+	srcpod string
+	dstpod string
+
+	srcnamespace string
+	dstnamespace string
+
+	protocol string
+	port string
+
+	kubeconfig string
+)
+
+func init() {
+	flag.BoolVar(&help, "h", false, "this help")
+
+	flag.StringVar(&srcnamespace, "sn", "", "namespace of src Pod, required")
+	flag.StringVar(&dstnamespace, "dn", "", "namespace of dst Pod, required")
+	flag.StringVar(&srcpod, "s", "", "src Pod name, required")
+	flag.StringVar(&dstpod, "d", "", "dst Pod name, required")
+	flag.StringVar(&protocol, "p", "", "protocol")
+	flag.StringVar(&port, "port", "", "port")
+	flag.StringVar(&kubeconfig, "k", "", "kubernetes cluster kubeconfig file path, required")
+
+	//flag.Usage() = usage
+}
+
+func main() {
+
+	flag.Parse()
+
+	if help {
+		flag.Usage()
+	}
+
+    //srcPodName := "client"
+	////srcPodName := "pod-ingress"
+    //dstPodName := "web"
+	//
+    //srcNamespace := "default"
+	////srcNamespace := "other"
+    //dstNamespace := "default"
+	//
+    //protocol := "TCP" // optional, set "" if no need to check
+    //port := "6379" // optional, set "" if no need to check
+	//
+	//kapi, err := k8s.NewKubernetesAPIClient("", "/Users/yikew/antrea-config/admin.conf")
+
+	kapi, err := k8s.NewKubernetesAPIClient("", kubeconfig)
+	if err != nil {
+		fmt.Errorf("error to get a kubernetes client: %s", err)
+	}
+
+	pc, err :=  kapi.PodConnectionAnalysis(srcpod, srcnamespace, dstpod, dstnamespace, protocol, port)
+	if err != nil {
+		fmt.Printf("fail to get src to dst status: %s", err)
+		os.Exit(1)
+	}
+	k8s.PrintPodConnection(pc)
+
+	//dstTosrc, tip, err :=  kapi.PodConnectionAnalysis(dstPodName, dstNamespace,srcPodName, srcNamespace, protocol, port)
+	//if err != nil {
+	//	fmt.Errorf("fail to get dst to src status: %s", err)
+	//}
+	//fmt.Printf("dst Pod to src Pod is allowed %s? %t\n", tip, dstTosrc)
+}
+
+func usage() {
+	fmt.Fprintf(os.Stderr, `nginx version: nginx/1.10.0
+Usage: podConnection [-s srcpod] [-d dstpod] [-sn srcnamespace] [-dn dstnamespace] [-k kubeconfigpath]
+
+Options:
+`)
+	flag.PrintDefaults()
+}

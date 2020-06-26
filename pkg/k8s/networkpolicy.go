@@ -1,10 +1,20 @@
 package k8s
 
 import (
+	"github.com/pkg/errors"
+
 	corev1 "k8s.io/api/core/v1"
 	networking "k8s.io/api/networking/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+)
+
+var (
+	// ErrKeyNotFound is returned when entity with provided key is not found in the store
+	ErrPolicyNotFound = errors.New("network policy not found")
+	// ErrKeyNotUnique is returned when entity with provided key already exists in the store
+	ErrIngressNotSet = errors.New("ingress is not set")
+	ErrEgressNotSet = errors.New("egress traffic is not set")
 )
 
 func (k *k8sClient) ListPoliciesInNamespace(nspName string) (*networking.NetworkPolicyList, error) {
@@ -37,6 +47,7 @@ func (k *k8sClient) ListPoliciesPerPod(pod *corev1.Pod) (*networking.NetworkPoli
 	return &appliedPolicies, nil
 }
 
+
 // ListIngressRulesPerPod Generate a set of IngressRules that apply to the pod given in parameter.
 // returns nil if the policies in parameters are not applicable to Ingress
 func (k *k8sClient) ListIngressRulesPerPod(pod *corev1.Pod) (*[]networking.NetworkPolicyIngressRule, error) {
@@ -44,7 +55,7 @@ func (k *k8sClient) ListIngressRulesPerPod(pod *corev1.Pod) (*[]networking.Netwo
 	if err != nil {
 		return nil, err
 	}
-	return ingressSetGenerator(matchedPolicies)
+	return k.ingressSetGenerator(matchedPolicies)
 }
 
 // ListEgressRulesPerPod Generate a set of EgressRules that apply to the pod given in parameter.
@@ -54,44 +65,65 @@ func (k *k8sClient) ListEgressRulesPerPod(pod *corev1.Pod) (*[]networking.Networ
 	if err != nil {
 		return nil, err
 	}
-	return egressSetGenerator(matchedPolicies)
+	return k.egressSetGenerator(matchedPolicies)
 }
 
 // generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
 // returns nil if the policies in parameters are not applicable to Ingress
-func ingressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
+func (k *k8sClient) ingressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyIngressRule, error) {
 	ingressRules := []networking.NetworkPolicyIngressRule{}
 
+	var hasPolicy, hasIngress bool
 	for _, policy := range policies.Items {
-		if IsPolicyApplicableToIngress(&policy) {
-			//applicable = true
+		hasPolicy = true
+		if k.IsPolicyApplicableToIngress(&policy) {
+			hasIngress = true
 			for _, singleRule := range policy.Spec.Ingress {
 				ingressRules = append(ingressRules, singleRule)
 			}
 		}
 	}
 
-	return &ingressRules, nil
+	var err error
+	if !hasPolicy {
+		err = ErrPolicyNotFound
+	}
+	if hasPolicy && !hasIngress {
+		err = ErrIngressNotSet
+	}
+
+	return &ingressRules, err
 }
 
 // generate a new table of IngressRules which are the Logical OR of all the existing IngressRules from all the policies given in parameter
 // returns nil if the policies in parameters are not applicable to Egress
-func egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
+func (k *k8sClient) egressSetGenerator(policies *networking.NetworkPolicyList) (*[]networking.NetworkPolicyEgressRule, error) {
 	egressRules := []networking.NetworkPolicyEgressRule{}
 
+	var hasPolicy, hasEgress bool
 	for _, policy := range policies.Items {
-		if IsPolicyApplicableToEgress(&policy) {
+		hasPolicy = true
+		if k.IsPolicyApplicableToEgress(&policy) {
+			hasEgress = true
 			for _, singleRule := range policy.Spec.Egress {
 				egressRules = append(egressRules, singleRule)
 			}
 		}
 	}
 
-	return &egressRules, nil
+	var err error
+	if !hasPolicy {
+		err = ErrPolicyNotFound
+	}
+	if hasPolicy && !hasEgress {
+		err = ErrEgressNotSet
+	}
+
+	return &egressRules, err
 }
 
 // IsPolicyApplicableToIngress returns true if the policy is applicable for Ingress traffic
-func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
+func (k *k8sClient) IsPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
 
 	// Logic: Policy applies to ingress only IF:
 	// - flag is not set
@@ -111,7 +143,7 @@ func IsPolicyApplicableToIngress(policy *networking.NetworkPolicy) bool {
 }
 
 // IsPolicyApplicableToEgress returns true if the policy is applicable for Egress traffic
-func IsPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
+func (k *k8sClient) IsPolicyApplicableToEgress(policy *networking.NetworkPolicy) bool {
 
 	// Logic: Policy applies to egress only IF:
 	// - flag is not set but egress section is present
