@@ -23,17 +23,17 @@ var (
 )
 
 func init() {
-	flag.BoolVar(&help, "h", false, "this help")
+	flag.BoolVar(&help, "h", false, "this `help`")
 
-	flag.StringVar(&srcnamespace, "sn", "", "namespace of src Pod, required")
-	flag.StringVar(&dstnamespace, "dn", "", "namespace of dst Pod, required")
-	flag.StringVar(&srcpod, "s", "", "src Pod name, required")
-	flag.StringVar(&dstpod, "d", "", "dst Pod name, required")
-	flag.StringVar(&protocol, "p", "", "protocol")
-	flag.StringVar(&port, "port", "", "port")
-	flag.StringVar(&kubeconfig, "k", "", "kubernetes cluster kubeconfig file path, required")
+	flag.StringVar(&srcnamespace, "sn", "", "specify the `namespace` of source Pod, required")
+	flag.StringVar(&dstnamespace, "dn", "", "specify the `namespace` of destination Pod, required")
+	flag.StringVar(&srcpod, "s", "", "specify the `source` Pod name, required")
+	flag.StringVar(&dstpod, "d", "", "specify the `destination` Pod name, required")
+	flag.StringVar(&protocol, "p", "", "specify the `protocol` of the connection")
+	flag.StringVar(&port, "port", "", "specify the `port` of the connection")
+	flag.StringVar(&kubeconfig, "k", "", "specify kubernetes cluster `kubeconfig` file path, required")
 
-	//flag.Usage() = usage
+	flag.Usage = usage
 }
 
 func main() {
@@ -42,6 +42,7 @@ func main() {
 
 	if help {
 		flag.Usage()
+		os.Exit(0)
 	}
 
     //srcPodName := "client"
@@ -77,10 +78,8 @@ func main() {
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `nginx version: nginx/1.10.0
-Usage: podConnection [-s srcpod] [-d dstpod] [-sn srcnamespace] [-dn dstnamespace] [-k kubeconfigpath]
-
-Options:
+	fmt.Fprintf(os.Stderr, `podconnection: a tool to analyze Pod Connection status based on network policies.
+Usage:
 `)
 	flag.PrintDefaults()
 }

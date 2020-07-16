@@ -207,7 +207,9 @@ func printPolicies(policies *networking.NetworkPolicyList) {
 
 func PrintPodConnection(pc PodConnection) {
 	if pc.reachable {
-		fmt.Printf("[Pod:%s]-[Namespace:%s] to [Pod:%s]-[Namespace:%s] is reachable\n", pc.src.Name, pc.src.Namespace, pc.dst.Name, pc.dst.Namespace)
+		if pc.protocol == "" && pc.port == "" {
+			fmt.Printf("[Pod:%s]-[Namespace:%s] to [Pod:%s]-[Namespace:%s] is reachable\n", pc.src.Name, pc.src.Namespace, pc.dst.Name, pc.dst.Namespace)
+		}
 		if pc.protocol != "" && pc.port != "" && pc.reachableOnPort {
 			fmt.Printf("[Pod:%s]-[Namespace:%s] to [Pod:%s]-[Namespace:%s] is reachable on %s:%s\n", pc.src.Name, pc.src.Namespace, pc.dst.Name, pc.dst.Namespace, pc.protocol, pc.port)
 		}
@@ -215,9 +217,9 @@ func PrintPodConnection(pc PodConnection) {
 			fmt.Printf("[Pod:%s]-[Namespace:%s] to [Pod:%s]-[Namespace:%s] is not reachable on %s:%s\n", pc.src.Name, pc.src.Namespace, pc.dst.Name, pc.dst.Namespace, pc.protocol, pc.port)
 		}
 		if pc.policyAllows != nil {
-			fmt.Printf("[Rule:%s]-[Policy:%s]-[Namespace:%s] allows the connection\n", pc.ruleAllows, pc.policyAllows.Name, pc.policyAllows.Namespace)
+			fmt.Printf("Reason: [Rule:%s]-[Policy:%s]-[Namespace:%s] allows the connection\n", pc.ruleAllows, pc.policyAllows.Name, pc.policyAllows.Namespace)
 		} else {
-			fmt.Printf("No rule working on the connection, allows the connection by default\n")
+			fmt.Printf("Reason: No policy rule working on the connection, allows the connection by default\n")
 		}
 	}
 
@@ -228,7 +230,7 @@ func PrintPodConnection(pc PodConnection) {
 			for _, policy := range pc.srcpolicies.Items {
 				srcpolicienames = append(srcpolicienames, policy.Name)
 			}
-			fmt.Printf("[Policy:%s]-[Namespace:%s] on [Pod:%s]-[Namespace:%s] is blocking the connection\n", strings.Join(srcpolicienames[:], ","), pc.src.Namespace, pc.src.Name, pc.src.Namespace)
+			fmt.Printf("Reason: [Policy:%s]-[Namespace:%s] on [Pod:%s]-[Namespace:%s] is blocking the connection\n", strings.Join(srcpolicienames[:], ","), pc.src.Namespace, pc.src.Name, pc.src.Namespace)
 		}
 
 		if len(pc.dstpolicies.Items) != 0 {
@@ -236,7 +238,7 @@ func PrintPodConnection(pc PodConnection) {
 			for _, policy := range pc.dstpolicies.Items {
 				dstpolicienames = append(dstpolicienames, policy.Name)
 			}
-			fmt.Printf("[Policy:%s]-[Namespace:%s] on [Pod:%s]-[Namespace:%s] is blocking the connection\n", strings.Join(dstpolicienames[:], ","), pc.dst.Namespace, pc.dst.Name, pc.dst.Namespace)
+			fmt.Printf("Reason: [Policy:%s]-[Namespace:%s] on [Pod:%s]-[Namespace:%s] is blocking the connection\n", strings.Join(dstpolicienames[:], ","), pc.dst.Namespace, pc.dst.Name, pc.dst.Namespace)
 		}
 	}
 
